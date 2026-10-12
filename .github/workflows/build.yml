@@ -6,7 +6,7 @@
 #
 # Runs whenever anything is uploaded or changed in the repository, or
 # by hand: Actions tab > "Build Itsycal" > Run workflow. When it finishes,
-# download "Itsycal-app" from Artifacts at the bottom of the run's page.
+# download "Itsycal.dmg" from Artifacts at the bottom of the run's page.
 
 name: Build Itsycal
 
@@ -81,18 +81,34 @@ jobs:
           test -f "$APP/Contents/Resources/quickentry.bundle.js" || { echo "::error::quickentry.bundle.js missing from the app"; exit 1; }
           codesign --verify --deep --verbose=2 "$APP"
 
-      - name: Zip the app
-        run: ditto -c -k --keepParent build/Release/Itsycal.app "$GITHUB_WORKSPACE/Itsycal.zip"
+      - name: Make a disk image (.dmg)
+        run: |
+          STAGE="$RUNNER_TEMP/dmg"
+          mkdir -p "$STAGE"
+          ditto build/Release/Itsycal.app "$STAGE/Itsycal.app"
+          ln -s /Applications "$STAGE/Applications"
+          # HFS+ so the image also opens on older macOS versions.
+          hdiutil create -volname Itsycal -srcfolder "$STAGE" -fs HFS+ -format UDZO -ov "$GITHUB_WORKSPACE/Itsycal.dmg"
+          hdiutil verify "$GITHUB_WORKSPACE/Itsycal.dmg"
+          # Open it once to make sure the app inside is intact.
+          MNT="$RUNNER_TEMP/mnt"
+          mkdir -p "$MNT"
+          hdiutil attach -nobrowse -readonly -mountpoint "$MNT" "$GITHUB_WORKSPACE/Itsycal.dmg"
+          codesign --verify --deep "$MNT/Itsycal.app"
+          test -x "$MNT/Itsycal.app/Contents/MacOS/Itsycal"
+          hdiutil detach "$MNT"
 
-      - uses: actions/upload-artifact@v6
+      # Uploaded as-is (not wrapped in another zip), so the download is
+      # Itsycal.dmg itself: double-click it, then drag Itsycal to Applications.
+      - uses: actions/upload-artifact@v7
         with:
-          name: Itsycal-app
-          path: Itsycal.zip
+          path: Itsycal.dmg
+          archive: false
           retention-days: 30
 
       - name: Keep the build log if something failed
         if: failure()
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v7
         with:
           name: xcodebuild-log
           path: xcodebuild.log
