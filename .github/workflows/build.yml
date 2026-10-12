@@ -22,7 +22,7 @@ jobs:
       run:
         working-directory: src/Itsycal
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Unpack the source
         working-directory: .
@@ -84,7 +84,7 @@ jobs:
       - name: Zip the app
         run: ditto -c -k --keepParent build/Release/Itsycal.app "$GITHUB_WORKSPACE/Itsycal.zip"
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v6
         with:
           name: Itsycal-app
           path: Itsycal.zip
@@ -92,7 +92,7 @@ jobs:
 
       - name: Keep the build log if something failed
         if: failure()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: xcodebuild-log
           path: xcodebuild.log
