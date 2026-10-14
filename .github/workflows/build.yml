@@ -37,17 +37,22 @@ jobs:
           sudo xcode-select -s /Applications/Xcode_16.4.app
           xcodebuild -version
 
-      - name: Test the quick-entry parser and check the bundle is up to date
+      - name: Test the quick-entry parser and calendar code, and check the bundles are up to date
         working-directory: src/Itsycal/QuickEntry
         env:
           TZ: America/Los_Angeles
         run: |
           cp ../Itsycal/quickentry.bundle.js "$RUNNER_TEMP/included.js"
+          cp ../Itsycal/remote.bundle.js "$RUNNER_TEMP/included-remote.js"
           npm ci
           npm test
           npm run build
           cmp -s ../Itsycal/quickentry.bundle.js "$RUNNER_TEMP/included.js" || {
             echo "::error::Itsycal/quickentry.bundle.js is out of date. Run 'npm run build' in QuickEntry."
+            exit 1
+          }
+          cmp -s ../Itsycal/remote.bundle.js "$RUNNER_TEMP/included-remote.js" || {
+            echo "::error::Itsycal/remote.bundle.js is out of date. Run 'npm run build' in QuickEntry."
             exit 1
           }
 
@@ -79,6 +84,7 @@ jobs:
           lipo -archs "$BIN" | grep -q arm64  || { echo "::error::No Apple silicon slice"; exit 1; }
           test "$(/usr/libexec/PlistBuddy -c 'Print :LSMinimumSystemVersion' "$APP/Contents/Info.plist")" = "10.14"
           test -f "$APP/Contents/Resources/quickentry.bundle.js" || { echo "::error::quickentry.bundle.js missing from the app"; exit 1; }
+          test -f "$APP/Contents/Resources/remote.bundle.js" || { echo "::error::remote.bundle.js missing from the app"; exit 1; }
           codesign --verify --deep --verbose=2 "$APP"
 
       - name: Make a disk image (.dmg)
